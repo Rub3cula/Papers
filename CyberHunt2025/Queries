@@ -1,0 +1,53 @@
+//The overview query that is used in several steps in the workflow
+def overview_json(db, t0, t1, host: Optional[str]=None, top_n=5) -> Dict[str, Any]:
+    hsql = " AND host = ?" if host else ""
+    params = [t0, t1] + ([host] if host else [])
+    total, alerts, nonalerts = db.execute(f"""
+      SELECT COUNT(*),
+             SUM(CASE WHEN sid IS NOT NULL THEN 1 ELSE 0 END),
+             SUM(CASE WHEN sid IS NULL  THEN 1 ELSE 0 END)
+      FROM suricata WHERE ts BETWEEN ? AND ?{hsql};""", params).fetchone()
+    sids = db.execute(f"""
+      SELECT sid, any_value(msg) AS msg, MAX(severity) AS sev, COUNT(*) AS ct
+      FROM suricata WHERE ts BETWEEN ? AND ?{hsql} AND sid IS NOT NULL
+      GROUP BY sid ORDER BY ct DESC LIMIT {top_n};""", params).fetchall()
+    top_src = db.execute(f"""
+      SELECT src_ip, COUNT(*) AS ct FROM suricata
+      WHERE ts BETWEEN ? AND ?{hsql} AND sid IS NOT NULL
+      GROUP BY src_ip ORDER BY ct DESC NULLS LAST LIMIT {top_n};""", params).fetchall()
+    top_dst = db.execute(f"""
+      SELECT dest_ip, COUNT(*) AS ct FROM suricata
+      WHERE ts BETWEEN ? AND ?{hsql} AND sid IS NOT NULL AND dest_ip IS NOT NULL
+      GROUP BY dest_ip ORDER BY ct DESC LIMIT {top_n};""", params).fetchall()
+    return {
+        "alert": {"level": ALERT_LEVEL, "text": ALERT_TEXT},
+        "window": {"start": t0, "end": t1, "host": host},
+        "totals": {"rows": int(total or 0), "alerts": int(alerts or 0), "nonalerts": int(nonalerts or 0)},
+        "top_sids": [{"sid":int(s or 0),"ct":int(c or 0),"sev":int(sev or 0),"msg":str(m)[:140]} for s,m,sev,c in sids],
+        "top_src": [{"ip":str(ip),"ct":int(c or 0)} for ip,c in top_src if ip],
+        "top_dst": [{"ip":str(ip),"ct":int(c or 0)} for ip,c in top_dst if ip],
+    }
+
+// THE SQL queries to choose from 
+SQL = {
+    "sids_window": """
+      SELECT sid, any_value(msg) AS msg, MAX(severity) AS max_sev, COUNT(*) AS ct
+      FROM suricata WHERE ts BETWEEN ? AND ? AND sid IS NOT NULL
+      GROUP BY sid ORDER BY ct DESC LIMIT {limit};""",
+    "top_src_alerts": """
+      SELECT src_ip, COUNT(*) AS ct
+      FROM suricata WHERE ts BETWEEN ? AND ? AND sid IS NOT NULL
+      GROUP BY src_ip ORDER BY ct DESC NULLS LAST LIMIT {limit};""",
+    "top_dst_alerts": """
+      SELECT dest_ip, COUNT(*) AS ct
+      FROM suricata WHERE ts BETWEEN ? AND ? AND sid IS NOT NULL AND dest_ip IS NOT NULL
+      GROUP BY dest_ip ORDER BY ct DESC LIMIT {limit};""",
+    "http_paths_alerts": """
+      SELECT http_path, COUNT(*) AS ct, ANY_VALUE(http_status) AS ex_status
+      FROM suricata WHERE ts BETWEEN ? AND ? AND sid IS NOT NULL AND http_path IS NOT NULL
+      GROUP BY http_path ORDER BY ct DESC LIMIT {limit};""",
+    "freeform_regex": """
+      SELECT ts, src_ip, dest_ip, sid, severity, msg
+      FROM suricata WHERE ts BETWEEN ? AND ? AND sid IS NOT NULL AND (msg ~ ?)
+      ORDER BY ts ASC LIMIT {limit};""",
+  }
