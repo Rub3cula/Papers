@@ -1,0 +1,705 @@
+{
+ "dataset": "DARPA OpTC day 3, host SysClient0051. Second victim SysClient0351. Gate fleet: 48 benign hosts, attack day. Held-out: 50 day-matched benign hosts plus 24 hosts one week earlier.",
+ "n_rules": 28,
+ "summary": {
+  "survive_rename": 28,
+  "survive_rename_and_port": 20,
+  "catch_second_victim": 24,
+  "n_clean_everywhere": 13,
+  "n_fire_on_held_out": 15
+ },
+ "family_counts": {
+  "temp_dir": 23,
+  "port_8080": 11,
+  "external_dest": 18,
+  "inbound_admin_port": 1,
+  "cmdline_keyword": 6,
+  "registry_event": 0,
+  "thread_event": 0,
+  "embeds_username": 1,
+  "embeds_ephemeral_port": 2,
+  "uncorrelated_exists": 2
+ },
+ "rules": [
+  {
+   "id": 1,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Execution",
+   "technique": "T1059.003 Command and Scripting Interpreter: Windows Command Shell",
+   "behaviour": "myHbYXTpViwX.vbs spawns obfuscated executable biGuWCmNsuCIG.exe and executes cmd.exe with batch scri",
+   "predicate": "object='PROCESS' AND action='CREATE' AND (prop_image_path ILIKE '%\\Windows\\Temp\\%' OR prop_command_line ILIKE '%\\Windows\\Temp\\%') AND (prop_image_path ILIKE '%.exe%' OR prop_image_path ILIKE '%.bat%' OR prop_image_path ILIKE '%.cmd%' OR prop_command_line ILIKE '%.bat%' OR prop_command_line ILIKE '%.cmd%') AND (prop_parent_image_path ILIKE '%system%' OR prop_parent_image_path ILIKE '%svchost%' OR prop_parent_image_path ILIKE '%lsass%' OR prop_parent_image_path ILIKE '%services%')",
+   "sigma": "title: Dropped File Execution from Temp Directory by System Process\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection:\n    Image|endswith:\n      - '.exe'\n      - '.bat'\n      - '.cmd'\n    Image|contains: '\\Windows\\Temp\\'\n    ParentImage|endswith:\n      - 'system.exe'\n      - 'svchost.exe'\n      - 'lsass.exe'\n      - 'services.exe'\n  condition: selection",
+   "families": [
+    "temp_dir",
+    "cmdline_keyword"
+   ],
+   "test": {
+    "self_events": 1,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 0,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 1,
+    "held_out_events": 1,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 2,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Command and Control",
+   "technique": "T1571 Non-Standard Port",
+   "behaviour": "cKfGW.exe establishes persistent bidirectional C2 communication to 53.192.68.50:8080 and 142.20.56.5",
+   "predicate": "object='FLOW' AND action='START' AND (prop_dest_port='8080' OR prop_dest_port='49803') AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%')",
+   "sigma": "title: Dropped File Establishes Persistent C2 Communication\nlogsource:\n  product: generic\n  category: network_connection\ndetection:\n  selection:\n    object: FLOW\n    action: START\n    prop_dest_port:\n      - '8080'\n      - '49803'\n    prop_dest_ip:\n      - condition: external\n  condition: selection",
+   "families": [
+    "port_8080",
+    "external_dest",
+    "embeds_ephemeral_port"
+   ],
+   "test": {
+    "self_events": 161,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 12,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 3,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Command and Control",
+   "technique": "T1071 Application Layer Protocol",
+   "behaviour": "cKfGW.exe maintains C2 beaconing to 53.192.68.50:8080 with alternating 276/154-byte messages at ~60-",
+   "predicate": "object='FLOW' AND action='MESSAGE' AND prop_dest_port='8080' AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%')",
+   "sigma": "title: C2 Beaconing with Alternating Message Sizes to External Port 8080\nlogsource:\n  product: generic\n  service: network\ndetection:\n  selection:\n    object: FLOW\n    action: MESSAGE\n    prop_dest_port: '8080'\n  filter_external:\n    prop_dest_ip|\n      - '10.*'\n      - '192.168.*'\n      - '172.16.*'\n      - '142.20.*'\n  condition: selection AND NOT filter_external",
+   "families": [
+    "port_8080",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 410,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 159,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 4,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Command and Control",
+   "technique": "T1071.001 Application Layer Protocol: Web Protocols",
+   "behaviour": "cKfGW.exe (PID 2712) resides in user temp directory and establishes bidirectional MESSAGE exchanges ",
+   "predicate": "(object='FILE' AND (prop_key ILIKE '%/tmp/%' OR prop_key ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%')) OR (object='FLOW' AND action='MESSAGE' AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%') AND (CAST(prop_dest_port AS INTEGER) = 8080 OR CAST(prop_dest_port AS INTEGER) = 49803))",
+   "sigma": "title: Dropped File in Temp Directory with Bidirectional C2 Communication\nlogsource:\n  product: generic\n  service: process_creation\ndetection:\n  temp_file_creation:\n    object: FILE\n    prop_key|contains:\n      - '/tmp/'\n      - '\\Temp\\'\n  c2_communication:\n    object: FLOW\n    action: MESSAGE\n    prop_dest_ip|cidr:\n      - '!142.20.0.0/16'\n      - '!10.0.0.0/8'\n      - '!192.168.0.0/16'\n      - '!172.16.0.0/12'\n    prop_dest_port:\n      - '8080'\n      - '49803'\n  condition: (temp_file_creation) AND (c2_communication)",
+   "families": [
+    "temp_dir",
+    "port_8080",
+    "external_dest",
+    "embeds_ephemeral_port"
+   ],
+   "test": {
+    "self_events": 410,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 159,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 6,
+    "held_out_events": 32,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 5,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Command and Control",
+   "technique": "T1071 Application Layer Protocol",
+   "behaviour": "cKfGW.exe (PID 2712) executes from user temp directory with consistent ~60-second beaconing to 142.2",
+   "predicate": "object='PROCESS' AND action='CREATE' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%') AND prop_parent_image_path IS NOT NULL AND prop_parent_image_path NOT ILIKE '%bash%' AND prop_parent_image_path NOT ILIKE '%sh%' AND prop_parent_image_path NOT ILIKE '%cmd.exe%' AND prop_parent_image_path NOT ILIKE '%powershell%' OR (object='FLOW' AND action='START' AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%') AND CAST(prop_dest_port AS INTEGER)=8080)",
+   "sigma": "title: Temp Directory Process Execution with External C2 Beaconing\nlogsource:\n  product: generic\n  service: process_creation\ndetection:\n  temp_exec:\n    object: PROCESS\n    action: CREATE\n    prop_image_path|contains:\n      - '/tmp/'\n      - '\\Temp\\'\n    prop_parent_image_path|exclude:\n      - '*bash*'\n      - '*sh*'\n      - '*cmd.exe*'\n      - '*powershell*'\n  external_beacon:\n    object: FLOW\n    action: START\n    prop_dest_port: '8080'\n    prop_dest_ip|exclude:\n      - '142.20.*'\n      - '10.*'\n      - '192.168.*'\n      - '172.16.*'\n  condition: temp_exec or external_beacon",
+   "families": [
+    "temp_dir",
+    "port_8080",
+    "external_dest",
+    "cmdline_keyword"
+   ],
+   "test": {
+    "self_events": 195,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 16,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 2,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 6,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Execution",
+   "technique": "T1047 Windows Management Instrumentation",
+   "behaviour": "wmiprvse.exe (PID 1332) spawned 50 diverse child processes (cmd.exe, python.exe, firefox.exe, outloo",
+   "predicate": "object='PROCESS' AND action='CREATE' AND (prop_parent_image_path ILIKE '%/tmp/%' OR prop_parent_image_path ILIKE '%\\Temp\\%' OR prop_parent_image_path ILIKE '%AppData\\Local\\Temp%' OR prop_command_line ILIKE '%/tmp/%')",
+   "sigma": "title: Dropped File Spawning Dropped File with Script Execution\nlogsource:\n  product: generic\n  service: process_creation\ndetection:\n  selection:\n    EventType: ProcessCreate\n    ParentImage|contains:\n      - '/tmp/'\n      - '\\Temp\\'\n      - 'AppData\\Local\\Temp'\n    Image|contains:\n      - '/tmp/'\n      - '\\Temp\\'\n      - 'AppData\\Local\\Temp'\n    CommandLine|contains:\n      - '.sh'\n      - '.ps1'\n      - '.bat'\n      - '.cmd'\n  condition: selection",
+   "families": [
+    "temp_dir"
+   ],
+   "test": {
+    "self_events": 3,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 0,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 1,
+    "held_out_events": 1,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 7,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Command and Control",
+   "technique": "T1071 Application Layer Protocol",
+   "behaviour": "cKfGW.exe in C:\\Users\\dcoombes\\AppData\\Local\\Temp\\ establishes C2 communication with fixed 60-second",
+   "predicate": "object='FILE' AND action='CREATE' AND prop_key ILIKE '%\\Users\\%\\AppData\\Local\\Temp\\%' OR (object='FLOW' AND action='START' AND prop_dest_port='8080' AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%'))",
+   "sigma": "title: Dropped File in Temp Directory Establishing C2 Communication\nlogsource:\n  product: generic\n  service: process_creation\ndetection:\n  file_creation:\n    object: FILE\n    action: CREATE\n    prop_key|contains:\n      - '\\Users\\'\n      - '\\AppData\\Local\\Temp\\'\n  c2_communication:\n    object: FLOW\n    action: START\n    prop_dest_port: '8080'\n  filter_internal:\n    prop_dest_ip|none_of:\n      - '142.20.*'\n      - '10.*'\n      - '192.168.*'\n      - '172.16.*'\n  condition: (file_creation) AND (c2_communication AND filter_internal)",
+   "families": [
+    "temp_dir",
+    "port_8080",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 161,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 12,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 8,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Defense Evasion",
+   "technique": "T1562.001 Impair Defenses: Disable or Modify Tools",
+   "behaviour": "DeleteArchiveSecurity.bat executed by cmd.exe (PPID svchost.exe 1008) to disable Windows security fe",
+   "predicate": "object='PROCESS' AND action='CREATE' AND prop_parent_image_path ILIKE '%\\Temp\\%' OR prop_parent_image_path ILIKE '%/tmp/%' OR prop_parent_image_path ILIKE '%\\AppData\\%' AND (prop_image_path ILIKE '%cmd.exe%' OR prop_image_path ILIKE '%powershell%' OR prop_image_path ILIKE '%wscript%' OR prop_image_path ILIKE '%cscript%') AND (prop_command_line ILIKE '%defender%' OR prop_command_line ILIKE '%DisableRealtimeMonitoring%' OR prop_command_line ILIKE '%Set-MpPreference%' OR prop_command_line ILIKE '%tamperprotection%' OR prop_command_line ILIKE '%firewall%' OR prop_command_line ILIKE '%netsh%' OR prop_command_line ILIKE '%sc stop%' OR prop_command_line ILIKE '%taskkill%')",
+   "sigma": "title: Dropped File Executing to Disable Windows Security Features\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection:\n    ParentImage|endswith:\n      - '\\Temp\\'\n      - '\\AppData\\'\n    Image|endswith:\n      - 'cmd.exe'\n      - 'powershell.exe'\n      - 'wscript.exe'\n      - 'cscript.exe'\n    CommandLine|contains:\n      - 'defender'\n      - 'DisableRealtimeMonitoring'\n      - 'Set-MpPreference'\n      - 'tamperprotection'\n      - 'firewall'\n      - 'netsh'\n      - 'sc stop'\n      - 'taskkill'\n  condition: selection",
+   "families": [
+    "temp_dir",
+    "cmdline_keyword"
+   ],
+   "test": {
+    "self_events": 3,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 0,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 1,
+    "held_out_events": 1,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 9,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Defense Evasion",
+   "technique": "T1547 Boot or Logon Autostart Execution",
+   "behaviour": "cKfGW.exe process and two external IPs (53.192.68.50, 142.20.56.52) all non-baseline with no legitim",
+   "predicate": "object='PROCESS' AND action='CREATE' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%\\AppData\\Local\\Temp%') AND EXISTS (SELECT 1 FROM events e2 WHERE e2.object='FLOW' AND e2.action IN ('START','MESSAGE') AND (e2.prop_dest_ip IS NOT NULL AND e2.prop_dest_ip NOT LIKE '142.20.%' AND e2.prop_dest_ip NOT LIKE '10.%' AND e2.prop_dest_ip NOT LIKE '192.168.%' AND e2.prop_dest_ip NOT LIKE '172.16.%') LIMIT 2)",
+   "sigma": "title: Dropped File Spawning Dropped File Process\nlogsource:\n  product: generic\n  service: process_creation\ndetection:\n  selection:\n    EventType: ProcessCreate\n    Image|endswith:\n      - '.exe'\n      - '.dll'\n      - '.scr'\n      - '.vbs'\n      - '.js'\n    Image|contains:\n      - '\\Temp\\'\n      - '\\AppData\\'\n      - '/tmp/'\n    ParentImage|contains:\n      - '\\Temp\\'\n      - '\\AppData\\'\n      - '/tmp/'\n  condition: selection",
+   "families": [
+    "temp_dir",
+    "external_dest",
+    "uncorrelated_exists"
+   ],
+   "test": {
+    "self_events": 34,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 4,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 2,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 10,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Defense Evasion",
+   "technique": "T1071 Application Layer Protocol",
+   "behaviour": "wmiprvse.exe child processes connecting to baseline-unlisted destinations including C2 IPs",
+   "predicate": "object='PROCESS' AND action='CREATE' AND prop_parent_image_path ILIKE '%/tmp/%' OR prop_parent_image_path ILIKE '%\\Temp\\%' OR prop_parent_image_path ILIKE '%AppData\\Local\\Temp%' AND EXISTS (SELECT 1 FROM events e2 WHERE e2.object='FLOW' AND e2.action IN ('START', 'OPEN') AND e2.prop_dest_ip IS NOT NULL AND e2.prop_dest_ip NOT LIKE '142.20.%' AND e2.prop_dest_ip NOT LIKE '10.%' AND e2.prop_dest_ip NOT LIKE '192.168.%' AND e2.prop_dest_ip NOT LIKE '172.16.%' AND e2.prop_dest_ip NOT LIKE '127.%')",
+   "sigma": "title: Dropped File Child Process Connecting to Baseline-Unlisted Destinations\nlogsource:\n  product: generic\n  service: process_creation\ndetection:\n  selection_parent:\n    object: PROCESS\n    action: CREATE\n    prop_parent_image_path:\n      - '*\\Temp\\*'\n      - '*/tmp/*'\n      - '*AppData\\Local\\Temp*'\n  selection_flow:\n    object: FLOW\n    action:\n      - START\n      - OPEN\n    prop_dest_ip:\n      - '!10.*'\n      - '!192.168.*'\n      - '!172.16.*'\n      - '!127.*'\n      - '!142.20.*'\n  condition: selection_parent and selection_flow",
+   "families": [
+    "temp_dir",
+    "external_dest",
+    "uncorrelated_exists"
+   ],
+   "test": {
+    "self_events": 751,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 420,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 14,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 11,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Exfiltration",
+   "technique": "T1071 Application Layer Protocol",
+   "behaviour": "python.exe and Outlook.exe reported initiating 1,998 connections to 142.20.56.52 with variable paylo",
+   "predicate": "object='FLOW' AND action='START' AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%') AND CAST(prop_dest_port AS INTEGER) NOT IN (80, 443, 53, 22, 21, 25, 587, 3306, 5432) AND prop_parent_image_path ILIKE '%/tmp/%' OR prop_parent_image_path ILIKE '%\\Temp\\%' OR prop_parent_image_path ILIKE '%AppData\\Local\\Temp%'",
+   "sigma": "title: Dropped File Initiating High-Volume External Connections with Variable Payloads\nlogsource:\n  product: generic\n  service: network\ndetection:\n  selection:\n    object: FLOW\n    action: START\n    prop_dest_ip|\n      - exclude:\n          - 142.20.*\n          - 10.*\n          - 192.168.*\n          - 172.16.*\n    prop_dest_port|\n      - exclude:\n          - '80'\n          - '443'\n          - '53'\n          - '22'\n          - '21'\n          - '25'\n          - '587'\n          - '3306'\n          - '5432'\n    prop_parent_image_path|\n      - '**/tmp/**'\n      - '**\\\\Temp\\\\**'\n      - '**AppData\\\\Local\\\\Temp**'\n  condition: selection",
+   "families": [
+    "temp_dir",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 751,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 420,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 14,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 12,
+   "model": "claude-haiku-4-5-20251001",
+   "tactic": "Execution",
+   "technique": "T1204 User Execution",
+   "behaviour": "cKfGW.exe in \\Users\\dcoombes\\AppData\\Local\\Temp\\ executed by svchost.exe with outbound connections t",
+   "predicate": "object='PROCESS' AND action='CREATE' AND prop_image_path ILIKE '%\\Users\\%\\AppData\\Local\\Temp\\%' OR object='PROCESS' AND action='OPEN' AND prop_image_path ILIKE '%\\Users\\%\\AppData\\Local\\Temp\\%' OR (object='FLOW' AND action='START' AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%') AND prop_parent_image_path ILIKE '%\\Users\\%\\AppData\\Local\\Temp\\%')",
+   "sigma": "title: Dropped File Execution from Temp with External Outbound Connection\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection_temp_exec:\n    Image|endswith:\n      - '\\Users\\*\\AppData\\Local\\Temp\\*'\n  selection_outbound:\n    DestinationIp|\n      - '!10.0.0.0/8'\n      - '!172.16.0.0/12'\n      - '!192.168.0.0/16'\n      - '!142.20.0.0/16'\n    DestinationPort: '*'\n  filter_parent_temp:\n    ParentImage|endswith:\n      - '\\Users\\*\\AppData\\Local\\Temp\\*'\n  condition: (selection_temp_exec OR filter_parent_temp) AND selection_outbound",
+   "families": [
+    "temp_dir",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 411,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 420,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 1,
+    "held_out_events": 9,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 13,
+   "model": "claude-sonnet-5",
+   "tactic": "Command and Control",
+   "technique": "T1071.001 Application Layer Protocol: Web Protocols",
+   "behaviour": "cKfGW.exe (spawned by gup.exe) beacons to 53.192.68.50:8080 with repeating 154/276-byte pattern plus",
+   "predicate": "object='FLOW' AND action IN ('START','MESSAGE') AND CAST(prop_dest_port AS INTEGER)=8080 AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%') AND (prop_image_path ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%AppData%' OR prop_parent_image_path ILIKE '%\\Temp\\%' OR prop_parent_image_path ILIKE '%/tmp/%' OR prop_parent_image_path ILIKE '%AppData%' OR prop_command_line ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%')",
+   "sigma": "title: C2 Beacon from Dropped File to External Host on Port 8080\nlogsource:\n  category: network_connection\ndetection:\n  selection:\n    object: 'FLOW'\n    action:\n      - 'START'\n      - 'MESSAGE'\n    prop_dest_port: 8080\n  filter_internal:\n    prop_dest_ip|startswith:\n      - '10.'\n      - '192.168.'\n      - '172.16.'\n      - '142.20.'\n  selection_dropped:\n    prop_image_path|contains:\n      - '\\\\Temp\\\\'\n      - '/tmp/'\n      - 'AppData'\n    prop_parent_image_path|contains:\n      - '\\\\Temp\\\\'\n      - '/tmp/'\n      - 'AppData'\n    prop_command_line|contains:\n      - '\\\\Temp\\\\'\n      - '/tmp/'\n  condition: selection and not filter_internal and selection_dropped",
+   "families": [
+    "temp_dir",
+    "port_8080",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 523,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 14,
+   "model": "claude-sonnet-5",
+   "tactic": "Defense Evasion",
+   "technique": "T1036 Masquerading",
+   "behaviour": "Follow-up query on wmiprvse.exe pid 2216 shows only benign OPEN actions, no child-process linkage to",
+   "predicate": "object='PROCESS' AND action='OPEN' AND (prop_image_path ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%/tmp/%' OR prop_key ILIKE '%\\Temp\\%' OR prop_key ILIKE '%/tmp/%') AND (prop_image_path ILIKE '%.exe' OR prop_image_path ILIKE '%.dll' OR prop_image_path ILIKE '%.bat' OR prop_image_path ILIKE '%.scr' OR prop_image_path ILIKE '%.ps1' OR prop_key ILIKE '%.exe' OR prop_key ILIKE '%.dll' OR prop_key ILIKE '%.bat' OR prop_key ILIKE '%.scr' OR prop_key ILIKE '%.ps1')",
+   "sigma": "title: Suspicious Open of Executable in Temp Directory Without Process Creation\nlogsource:\n  category: process_access\nproduct: windows\ndetection:\n  selection:\n    object: 'PROCESS'\n    action: 'OPEN'\n    prop_image_path|contains:\n      - '\\Temp\\'\n      - '/tmp/'\n  filter_ext:\n    prop_image_path|endswith:\n      - '.exe'\n      - '.dll'\n      - '.bat'\n      - '.scr'\n      - '.ps1'\n  condition: selection and filter_ext",
+   "families": [
+    "temp_dir",
+    "cmdline_keyword"
+   ],
+   "test": {
+    "self_events": 715,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 416,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 11,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 15,
+   "model": "claude-sonnet-5",
+   "tactic": "Command and Control",
+   "technique": "T1071.001 Application Layer Protocol: Web Protocols",
+   "behaviour": "cKfGW.exe communicates directly with 53.192.68.50:8080",
+   "predicate": "(object='FLOW' AND (action='START' OR action='MESSAGE' OR action='OPEN') AND prop_dest_port IS NOT NULL AND CAST(prop_dest_port AS INTEGER)=8080 AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%')) OR (prop_command_line ILIKE '%8080%' AND (prop_command_line ILIKE '%http%' OR prop_command_line ILIKE '%curl%' OR prop_command_line ILIKE '%wget%' OR prop_command_line ILIKE '%nc %' OR prop_command_line ILIKE '%ncat%'))",
+   "sigma": "title: Dropped File Communicates with External Host on Port 8080\nlogsource:\n  category: network_connection\ndetection:\n  selection_network:\n    object: 'FLOW'\n    action:\n      - 'START'\n      - 'MESSAGE'\n      - 'OPEN'\n    prop_dest_port: '8080'\n  filter_internal:\n    prop_dest_ip|startswith:\n      - '142.20.'\n      - '10.'\n      - '192.168.'\n      - '172.16.'\n  selection_cmd:\n    prop_command_line|contains: '8080'\n    prop_command_line|contains:\n      - 'http'\n      - 'curl'\n      - 'wget'\n      - 'nc '\n      - 'ncat'\n  condition: (selection_network and not filter_internal) or selection_cmd",
+   "families": [
+    "port_8080",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 571,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 16,
+   "model": "claude-sonnet-5",
+   "tactic": "Command and Control",
+   "technique": "T1071.001 Application Layer Protocol: Web Protocols",
+   "behaviour": "cKfGW.exe (dcoombes Temp, dropped by gup.exe) beacons to 53.192.68.50:8080 and spawns cmd.exe",
+   "predicate": "(object='PROCESS' AND (prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%/tmp/%') AND (prop_parent_image_path ILIKE '%\\Temp\\%' OR prop_parent_image_path ILIKE '%/tmp/%')) OR (object='FLOW' AND CAST(prop_dest_port AS INTEGER)=8080 AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%'))",
+   "sigma": "title: Dropped File Beacons to External C2 on Port 8080 and Spawns Child from Temp\nlogsource:\n  category: process_creation_and_network\n  product: multi\ndetection:\n  selection_process:\n    object: 'PROCESS'\n    prop_image_path|contains:\n      - '\\Temp\\'\n      - '/tmp/'\n    prop_parent_image_path|contains:\n      - '\\Temp\\'\n      - '/tmp/'\n  selection_network:\n    object: 'FLOW'\n    prop_dest_port: '8080'\n    prop_dest_ip|startswith:\n      - '142.20.'\n      - '10.'\n      - '192.168.'\n      - '172.16.'\n  condition: selection_process or (selection_network and not selection_network)",
+   "families": [
+    "temp_dir",
+    "port_8080",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 1319,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 591,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 13,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 17,
+   "model": "claude-sonnet-5",
+   "tactic": "Command and Control",
+   "technique": "unclear",
+   "behaviour": "Claimed cKfGW.exe C2 beacon to 142.20.56.52/53.192.68.50:8080 returned zero supporting FLOW rows",
+   "predicate": "object='FLOW' AND action IN ('START','MESSAGE') AND prop_dest_port IS NOT NULL AND CAST(prop_dest_port AS INTEGER)=8080 AND prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%'",
+   "sigma": "title: External Beacon on Port 8080\nlogsource:\n  category: network_connection\ndetection:\n  selection:\n    object: FLOW\n    action:\n      - START\n      - MESSAGE\n    prop_dest_port: 8080\n    prop_dest_ip|startswith:\n      - '142.20.'\n      - '10.'\n      - '192.168.'\n      - '172.16.'\n  filter:\n    prop_dest_ip|startswith:\n      - '142.20.'\n      - '10.'\n      - '192.168.'\n      - '172.16.'\n  condition: selection and not filter",
+   "families": [
+    "port_8080",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 571,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 18,
+   "model": "claude-sonnet-5",
+   "tactic": "Command and Control",
+   "technique": "T1071.001 Application Layer Protocol: Web Protocols",
+   "behaviour": "cKfGW.exe (Temp, dcoombes) beacons repeatedly to 53.192.68.50:8080 over fixed src port with irregula",
+   "predicate": "( (object='PROCESS' AND (prop_image_path ILIKE '%\\\\Temp\\\\%' OR prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%dcoombes%' OR prop_command_line ILIKE '%dcoombes%')) OR (object='FILE' AND (prop_key ILIKE '%\\\\Temp\\\\%' OR prop_key ILIKE '%/tmp/%' OR prop_key ILIKE '%dcoombes%')) OR (object='FLOW' AND action IN ('START','MESSAGE') AND CAST(prop_dest_port AS INTEGER)=8080 AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%')) )",
+   "sigma": "title: Dropped Temp File Beaconing to External C2 on Port 8080\nlogsource:\n  category: process_creation_and_network\n  product: multi\ndetection:\n  selection_drop:\n    object: 'PROCESS'\n    prop_image_path|contains:\n      - '\\Temp\\'\n      - '/tmp/'\n      - 'dcoombes'\n  selection_file:\n    object: 'FILE'\n    prop_key|contains:\n      - '\\Temp\\'\n      - '/tmp/'\n      - 'dcoombes'\n  selection_net:\n    object: 'FLOW'\n    action:\n      - 'START'\n      - 'MESSAGE'\n    prop_dest_port: '8080'\n    prop_dest_ip|startswith:\n      - '10.'\n      - '192.168.'\n      - '172.16.'\n      - '142.20.'\n  condition: (selection_drop or selection_file) or (selection_net and not selection_net)",
+   "families": [
+    "temp_dir",
+    "port_8080",
+    "external_dest",
+    "embeds_username"
+   ],
+   "test": {
+    "self_events": 1398,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 19,
+   "model": "claude-sonnet-5",
+   "tactic": "Command and Control",
+   "technique": "T1071.001 Application Layer Protocol: Web Protocols",
+   "behaviour": "cKfGW.exe in dcoombes Temp folder beacons to 53.192.68.50:8080",
+   "predicate": "object='FLOW' AND (action='START' OR action='MESSAGE') AND CAST(prop_dest_port AS INTEGER)=8080 AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%') AND (prop_image_path ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%/tmp/%' OR prop_command_line ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%')",
+   "sigma": "title: Dropped File in Temp Folder Beaconing to External Host on Port 8080\nlogsource:\n  category: network_connection\n  product: windows\ndetection:\n  selection:\n    object: 'FLOW'\n    action:\n      - 'START'\n      - 'MESSAGE'\n    prop_dest_port: 8080\n    prop_image_path|contains:\n      - '\\Temp\\'\n      - '/tmp/'\n  filter_internal:\n    prop_dest_ip|startswith:\n      - '10.'\n      - '192.168.'\n      - '172.16.'\n      - '142.20.'\n  condition: selection and not filter_internal",
+   "families": [
+    "temp_dir",
+    "port_8080",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 523,
+    "survives_rename": true,
+    "survives_rename_and_port": false,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 20,
+   "model": "gemma4:12b",
+   "tactic": "Defense Evasion",
+   "technique": "unclear",
+   "behaviour": "dismhost.exe and cKfGW.exe executing from a temporary directory",
+   "predicate": "(object='FILE' AND action='CREATE' AND (prop_key ILIKE '%/tmp/%' OR prop_key ILIKE '%\\Temp\\%')) OR (object='PROCESS' AND action='CREATE' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%'))",
+   "sigma": "title: Dropped File or Execution from Temporary Directory\nlogsource:\n    category: [process_creation, file_creation]\n    product: all\ndetection:\n    - selection:\n        condition: (object='FILE' AND action='CREATE' AND (prop_key ILIKE '%/tmp/%' OR prop_key ILIKE '%\\Temp\\%')) OR (object='PROCESS' AND action='CREATE' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%'))\n      description: Detects files created in temporary directories or processes executing from temporary directories.",
+   "families": [
+    "temp_dir"
+   ],
+   "test": {
+    "self_events": 34,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 4,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 2,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 21,
+   "model": "gemma4:12b",
+   "tactic": "Command and Control",
+   "technique": "T1071 (Application Layer Protocol)",
+   "behaviour": "lsass.exe connecting to 142.20.56.52",
+   "predicate": "object='FLOW' AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%') AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%' OR prop_command_line ILIKE '%\\Temp\\%')",
+   "sigma": "title: Dropped File Connecting to External IP\nlogsource:\n    category: network_traffic\ndetection:\n    selection_dropped:\n        image_path: \n            - \".*\\/tmp/.*\"\n            - \".*\\\\Temp\\\\.*\"\n        command_line: \n            - \".*\\/tmp/.*\"\n            - \".*\\\\Temp\\\\.*\"\n    selection_external:\n        dest_ip: \n            - \"!10.*\"\n            - \"!192.168.*\"\n            - \"!172.16.*\"\n            - \"!142.20.*\"\n    condition: selection_dropped and selection_external",
+   "families": [
+    "temp_dir",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 523,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 22,
+   "model": "gemma4:12b",
+   "tactic": "Command and Control",
+   "technique": "T1090 Communicating Before Command and Control",
+   "behaviour": "Network communication to 142.20.56.52 from cKfGW.exe or dismhost.exe",
+   "predicate": "object='FLOW' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%\\AppData\\%') AND (prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%')",
+   "sigma": "title: Network communication from dropped file to external IP\nlogsource:\n    product: network\ndetection:\n    selection:\n        image_path:\n            - '*/tmp/*'\n            - '*\\Temp*'\n            - '*\\AppData*'\n    condition: selection and (dest_ip != null and dest_ip not in ['142.20.%', '10.%', '192.168.%', '172.16.%'])",
+   "families": [
+    "temp_dir",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 523,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 23,
+   "model": "gemma4:12b",
+   "tactic": "Discovery",
+   "technique": "T1047 (Windows Management Instrumentation)",
+   "behaviour": "wmiprvse.exe performing automated discovery or lateral movement",
+   "predicate": "object='PROCESS' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%\\Users\\Public\\%') AND (prop_command_line ILIKE '%whoami%' OR prop_command_line ILIKE '%hostname%' OR prop_command_line ILIKE '%net%' OR prop_command_line ILIKE '%arp%' OR prop_command_line ILIKE '%nslookup%' OR prop_image_path ILIKE '%whoami%' OR prop_image_path ILIKE '%hostname%')",
+   "sigma": "title: Dropped File Performing Discovery\nlogsource: process-creation\ndetection:\n    selection_location:\n        ImageFilePath:\n            - '*/tmp/*'\n            - '*\\Temp*'\n            - '*\\Users\\Public*'\n    selection_discovery:\n        CommandLine:\n            - '*whoami*'\n            - '*hostname*'\n            - '*net*'\n            - '*arp*'\n            - '*nslookup*'\n        ImageFilePath:\n            - '*whoami*'\n            - '*hostname*'\n    condition: selection_location and selection_discovery",
+   "families": [
+    "temp_dir",
+    "cmdline_keyword"
+   ],
+   "test": {
+    "self_events": 76,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 76,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 24,
+   "model": "gemma4:12b",
+   "tactic": "Execution",
+   "technique": "T1059.005 Command and Scripting Interpreter: Windows Scripting Host",
+   "behaviour": "cscript.exe executing scripts when invoked by cKfGW.exe or dismhost.exe",
+   "predicate": "object='PROCESS' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_image_path ILIKE '%\\AppData\\%' OR prop_image_path ILIKE '%\\Public\\%') AND (prop_parent_image_path ILIKE '%/tmp/%' OR prop_parent_image_path ILIKE '%\\Temp\\%' OR prop_parent_image_path ILIKE '%\\AppData\\%' OR prop_parent_image_path ILIKE '%\\Public\\%') AND (prop_command_line ILIKE '%.*sh' OR prop_command_line ILIKE '%.*bat' OR prop_command_line ILIKE '%.*ps1' OR prop_command_line ILIKE '%.*vbs' OR prop_command_line ILIKE '%python%' OR prop_command_line ILIKE '%bash%')",
+   "sigma": "title: Dropped File Executing Script from Dropped Parent\nlogsource:\n    category: process-creation\ndetection:\n    selection:\n        Image: '*/tmp/*' \n        ParentImage: '*/tmp/*'\n        CommandLine: '*(.sh|.bat|.ps1|.vbs|python|bash)*'\n    condition: selection",
+   "families": [
+    "temp_dir",
+    "cmdline_keyword"
+   ],
+   "test": {
+    "self_events": 8,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 8,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 1,
+    "held_out_events": 4,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 25,
+   "model": "gemma4:e4b",
+   "tactic": "Defense Evasion",
+   "technique": "T1003 OS Credential Dumping",
+   "behaviour": "Unauthorized execution of cKfGW.exe by lsass.exe and svchost.exe",
+   "predicate": "object='PROCESS' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%') AND prop_parent_image_path IS NOT NULL",
+   "sigma": "title: Unauthorized execution of dropped file\nlogsource: endpoint_process\ndetection:\n  selection:\n    object: PROCESS\n    prop_image_path: \"*\\tmp*\" OR \"*\\\\Temp*\"\n    prop_command_line: \"*\\tmp*\" OR \"*\\\\Temp*\"\n    prop_parent_image_path: \"*\"\n  condition: selection",
+   "families": [
+    "temp_dir"
+   ],
+   "test": {
+    "self_events": 782,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 424,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 15,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 26,
+   "model": "gemma4:e4b",
+   "tactic": "Discovery",
+   "technique": "T1190 Exploit Public-Facing Application",
+   "behaviour": "Unsolicited inbound network connections targeting core Windows services (svchost.exe, taskhostw.exe)",
+   "predicate": "object='FLOW' AND CAST(prop_dest_port AS INTEGER) IN (3389, 445, 5985, 5986, 1433, 389) AND (prop_src_ip IS NOT NULL AND prop_src_ip NOT LIKE '142.20.%' AND prop_src_ip NOT LIKE '10.%' AND prop_src_ip NOT LIKE '192.168.%' AND prop_src_ip NOT LIKE '172.16.%')",
+   "sigma": "title: Unsolicited inbound connections to core Windows services\nlogsource: endpoint_network_flow\ndetection:\n  selection:\n    object: FLOW\n    prop_dest_port: \"3389, 445, 5985, 5986, 1433, 389\"\n    src_ip: 'not (142.20.* or 10.* or 192.168.* or 172.16.*)'\n  condition: selection",
+   "families": [
+    "inbound_admin_port"
+   ],
+   "test": {
+    "self_events": 29,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 0,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  },
+  {
+   "id": 27,
+   "model": "gemma4:e4b",
+   "tactic": "Execution",
+   "technique": "T1543.003 Windows Management Instrumentation",
+   "behaviour": "Execution of srvstart.exe by wmiprvse.exe",
+   "predicate": "(object='PROCESS' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%')) OR (object='FILE' AND action IN ('WRITE', 'CREATE') AND (prop_key ILIKE '%/tmp/%' OR prop_key ILIKE '%\\Temp\\%'))",
+   "sigma": "title: Dropped File or External Communication\nlogsource:\n    category: [network, process]\ndetection:\n    selection_dropped:\n        object: PROCESS\n        image_path: /.*(tmp|Temp).*\n    selection_external:\n        object: FLOW\n        dest_ip: ! -142.20.* -10.* -192.168.* -172.16.*\n    condition: selection_dropped or selection_external",
+   "families": [
+    "temp_dir"
+   ],
+   "test": {
+    "self_events": 782,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 424,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 2,
+    "held_out_events": 15,
+    "silent_on_held_out": false
+   }
+  },
+  {
+   "id": 28,
+   "model": "gemma4:e4b",
+   "tactic": "Command and Control",
+   "technique": "unclear",
+   "behaviour": "The temporary executable cKfGW.exe established persistent network communication with external IPs (1",
+   "predicate": "object='FLOW' AND prop_dest_ip IS NOT NULL AND prop_dest_ip NOT LIKE '142.20.%' AND prop_dest_ip NOT LIKE '10.%' AND prop_dest_ip NOT LIKE '192.168.%' AND prop_dest_ip NOT LIKE '172.16.%' AND (prop_image_path ILIKE '%/tmp/%' OR prop_image_path ILIKE '%\\Temp\\%' OR prop_command_line ILIKE '%/tmp/%')",
+   "sigma": "title: C2 Communication from Temporary Executable\nlogsource: endpoint_process_flow\ndetection:\n  selection:\n    object: FLOW\n    prop_dest_ip: \"!142.20.% !10.% !192.168.% !172.16.%\"\n  condition: object=FLOW and prop_dest_ip != \"142.20.%\" and prop_dest_ip != \"10.%\" and prop_dest_ip != \"192.168.%\" and prop_dest_ip != \"172.16.%\" and (prop_image_path contains \"/tmp/\" or prop_image_path contains \"\\\\Temp\\\\\" or prop_command_line contains \"/tmp/\")",
+   "families": [
+    "temp_dir",
+    "external_dest"
+   ],
+   "test": {
+    "self_events": 523,
+    "survives_rename": true,
+    "survives_rename_and_port": true,
+    "second_victim_events": 171,
+    "gate_benign_hosts_fired": 0,
+    "gate_benign_hosts_total": 48,
+    "held_out_host_days_fired": 0,
+    "held_out_events": 0,
+    "silent_on_held_out": true
+   }
+  }
+ ]
+}

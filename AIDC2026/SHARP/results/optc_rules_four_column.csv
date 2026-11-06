@@ -1,0 +1,29 @@
+id,model,tactic,technique,self,rename,rename+port,second_victim,held_out_host_days
+1,claude-haiku-4-5-20251001,Execution,T1059.003 Command and Scripting Interpreter: Windows Command Shell,1,yes,yes,0,1
+2,claude-haiku-4-5-20251001,Command and Control,T1571 Non-Standard Port,161,yes,no,12,0
+3,claude-haiku-4-5-20251001,Command and Control,T1071 Application Layer Protocol,410,yes,no,159,0
+4,claude-haiku-4-5-20251001,Command and Control,T1071.001 Application Layer Protocol: Web Protocols,410,yes,no,159,6
+5,claude-haiku-4-5-20251001,Command and Control,T1071 Application Layer Protocol,195,yes,yes,16,2
+6,claude-haiku-4-5-20251001,Execution,T1047 Windows Management Instrumentation,3,yes,yes,0,1
+7,claude-haiku-4-5-20251001,Command and Control,T1071 Application Layer Protocol,161,yes,no,12,0
+8,claude-haiku-4-5-20251001,Defense Evasion,T1562.001 Impair Defenses: Disable or Modify Tools,3,yes,yes,0,1
+9,claude-haiku-4-5-20251001,Defense Evasion,T1547 Boot or Logon Autostart Execution,34,yes,yes,4,2
+10,claude-haiku-4-5-20251001,Defense Evasion,T1071 Application Layer Protocol,751,yes,yes,420,2
+11,claude-haiku-4-5-20251001,Exfiltration,T1071 Application Layer Protocol,751,yes,yes,420,2
+12,claude-haiku-4-5-20251001,Execution,T1204 User Execution,411,yes,yes,420,1
+13,claude-sonnet-5,Command and Control,T1071.001 Application Layer Protocol: Web Protocols,523,yes,no,171,0
+14,claude-sonnet-5,Defense Evasion,T1036 Masquerading,715,yes,yes,416,2
+15,claude-sonnet-5,Command and Control,T1071.001 Application Layer Protocol: Web Protocols,571,yes,no,171,0
+16,claude-sonnet-5,Command and Control,T1071.001 Application Layer Protocol: Web Protocols,1319,yes,yes,591,2
+17,claude-sonnet-5,Command and Control,unclear,571,yes,no,171,0
+18,claude-sonnet-5,Command and Control,T1071.001 Application Layer Protocol: Web Protocols,1398,yes,yes,171,0
+19,claude-sonnet-5,Command and Control,T1071.001 Application Layer Protocol: Web Protocols,523,yes,no,171,0
+20,gemma4:12b,Defense Evasion,unclear,34,yes,yes,4,2
+21,gemma4:12b,Command and Control,T1071 (Application Layer Protocol),523,yes,yes,171,0
+22,gemma4:12b,Command and Control,T1090 Communicating Before Command and Control,523,yes,yes,171,0
+23,gemma4:12b,Discovery,T1047 (Windows Management Instrumentation),76,yes,yes,76,0
+24,gemma4:12b,Execution,T1059.005 Command and Scripting Interpreter: Windows Scripting Host,8,yes,yes,8,1
+25,gemma4:e4b,Defense Evasion,T1003 OS Credential Dumping,782,yes,yes,424,2
+26,gemma4:e4b,Discovery,T1190 Exploit Public-Facing Application,29,yes,yes,0,0
+27,gemma4:e4b,Execution,T1543.003 Windows Management Instrumentation,782,yes,yes,424,2
+28,gemma4:e4b,Command and Control,unclear,523,yes,yes,171,0
